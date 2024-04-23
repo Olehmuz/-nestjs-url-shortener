@@ -1,36 +1,18 @@
+version: '3.1'
 services:
-  parser:
+  gateway:
     build:
       context: .
-      dockerfile: ./apps/parser/Dockerfile
+      dockerfile: ./apps/gateway/Dockerfile
       target: development
-    command: yarn start:dev parser
-    env_file:
-      - ./apps/parser/.env
-    depends_on:
-      - mongodb-primary
-      - mongodb-secondary
-      - mongodb-arbiter
-      - rabbitmq
-    volumes:
-      - .:/usr/src/app
-      - /usr/src/app/node_modules
+    command: yarn start:dev gateway
     ports:
       - '3000:3000'
-  careers:
-    build:
-      context: .
-      dockerfile: ./apps/careers/Dockerfile
-      target: development
-    command: yarn start:dev careers
     env_file:
-      - ./apps/careers/.env
+      - ./apps/gateway/.env
     depends_on:
-      - mongodb-primary
-      - mongodb-secondary
-      - mongodb-arbiter
       - rabbitmq
-      - parser
+      - db
     volumes:
       - .:/usr/src/app
       - /usr/src/app/node_modules
@@ -38,43 +20,30 @@ services:
     image: rabbitmq
     ports:
       - '5672:5672'
-  mongodb-primary:
-    image: docker.io/bitnami/mongodb:5.0
+  db:
+    image: postgres
+    container_name: db
+    restart: always
     environment:
-      - MONGODB_ADVERTISED_HOSTNAME=mongodb-primary
-      - MONGODB_REPLICA_SET_MODE=primary
-      - MONGODB_ROOT_PASSWORD=password123
-      - MONGODB_REPLICA_SET_KEY=replicasetkey123
-      - EXPERIMENTAL_DOCKER_DESKTOP_FORCE_QEMU=1
-    volumes:
-      - 'mongodb_master_data:/bitnami/mongodb'
+      POSTGRES_USER: user
+      POSTGRES_PASSWORD: password
+      POSTGRES_DB: url_shortener
     ports:
-      - '27017:27017'
-
-  mongodb-secondary:
-    image: docker.io/bitnami/mongodb:5.0
-    depends_on:
-      - mongodb-primary
+      - 5432:5432
+    volumes: 
+      - db:/var/lib/postgresql/data
+  pgadmin4:
+    image: dpage/pgadmin4
+    container_name: pgadmin4
+    restart: always
+    ports:
+      - 5050:80
     environment:
-      - MONGODB_ADVERTISED_HOSTNAME=mongodb-secondary
-      - MONGODB_REPLICA_SET_MODE=secondary
-      - MONGODB_INITIAL_PRIMARY_HOST=mongodb-primary
-      - MONGODB_INITIAL_PRIMARY_ROOT_PASSWORD=password123
-      - MONGODB_REPLICA_SET_KEY=replicasetkey123
-      - EXPERIMENTAL_DOCKER_DESKTOP_FORCE_QEMU=1
+      PGADMIN_DEFAULT_EMAIL: test@test.com
+      PGADMIN_DEFAULT_PASSWORD: 123
+    volumes:
+      - pgadmin:/var/lib/pgadmin
 
-  mongodb-arbiter:
-    image: docker.io/bitnami/mongodb:5.0
-    depends_on:
-      - mongodb-primary
-    environment:
-      - MONGODB_ADVERTISED_HOSTNAME=mongodb-arbiter
-      - MONGODB_REPLICA_SET_MODE=arbiter
-      - MONGODB_INITIAL_PRIMARY_HOST=mongodb-primary
-      - MONGODB_INITIAL_PRIMARY_ROOT_PASSWORD=password123
-      - MONGODB_REPLICA_SET_KEY=replicasetkey123
-      - EXPERIMENTAL_DOCKER_DESKTOP_FORCE_QEMU=1
-
-volumes:
-  mongodb_master_data:
-    driver: local
+volumes: 
+  db:
+  pgadmin:
